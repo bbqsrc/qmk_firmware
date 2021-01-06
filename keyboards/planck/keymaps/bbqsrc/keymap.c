@@ -21,6 +21,7 @@ enum custom_keycodes {
     BR_PDOT,
     BR_ALT,
     BR_T_ALT,
+    BR_T_GUI,
 };
 
 enum layers {
@@ -66,7 +67,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ________, KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    ________, ________, ________, ________, KC_DEL,
     ________, KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,   ________, ________, ________, ________, ________,
     ________, ________, ________, ________, ________, ________, ________, ________, ________, ________, ________, ________,
-    ________, ________, BR_T_ALT, ________, TG(NPAD),       ________,     ________, KC_HOME,  KC_PGUP,  KC_PGDN,  KC_END
+    ________, ________, BR_T_ALT, BR_T_GUI, TG(NPAD),       ________,     ________, KC_HOME,  KC_PGUP,  KC_PGDN,  KC_END
   )
 };
 
@@ -80,10 +81,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 #if AUDIO_ENABLE
 float tone_ralt_on[][2]     = SONG(SCROLL_LOCK_ON_SOUND);
-float tone_ralt_off[][2]     = SONG(SCROLL_LOCK_OFF_SOUND);
+float tone_ralt_off[][2]    = SONG(SCROLL_LOCK_OFF_SOUND);
+float tone_winlock_on[][2]  = SONG(CAPS_LOCK_ON_SOUND);
+float tone_winlock_off[][2] = SONG(CAPS_LOCK_OFF_SOUND);
+float tone_winlock[][2]     = SONG(UNICODE_WINDOWS);
 #endif
 
 bool is_ralt = false;
+bool is_winlock = false;
 
 void process_alt(keyrecord_t *record) {
     uint16_t keycode = KC_LALT;
@@ -99,9 +104,32 @@ void process_alt(keyrecord_t *record) {
     }
 }
 
+void process_super(keyrecord_t *record) {
+    if (is_winlock) {
+        if (record->event.pressed) {
+            #ifdef AUDIO_ENABLE
+            stop_all_notes();
+            PLAY_SONG(tone_winlock);
+            #endif
+        }
+        return;
+    }
+
+    if (record->event.pressed) {
+        register_code(KC_LGUI);
+    } else {
+        unregister_code(KC_LGUI);
+    }
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (keycode == BR_ALT) {
         process_alt(record);
+        return false;
+    }
+
+    if (keycode == KC_LGUI) {
+        process_super(record);
         return false;
     }
 
@@ -114,6 +142,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             PLAY_SONG(tone_ralt_on);
           } else {
             PLAY_SONG(tone_ralt_off);
+          }
+        #endif
+        return false;
+    }
+
+    if (keycode == BR_T_GUI && record->event.pressed) {
+        is_winlock = !is_winlock;
+
+        #ifdef AUDIO_ENABLE
+          stop_all_notes();
+          if (is_winlock) {
+            PLAY_SONG(tone_winlock_on);
+          } else {
+            PLAY_SONG(tone_winlock_off);
           }
         #endif
         return false;
@@ -137,6 +179,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         case KC_BSLS:
             SEND_STRING("|>");
+            return false;
+        case KC_LPRN:
+            SEND_STRING("{:#}");
+            return false;
+        case KC_RPRN:
+            SEND_STRING("{:#?}");
             return false;
         case KC_LCBR:
             SEND_STRING("{}");
